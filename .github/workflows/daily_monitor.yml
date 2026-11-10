@@ -4,8 +4,8 @@ on:
   schedule:
     # 1) 매일 오전 07:30 KST (UTC 22:30 전날)
     - cron: '30 22 * * *'
-    # 2) 매일 오후 18:00 KST (UTC 09:00 당일)
-    - cron: '0 9 * * *'
+    # 2) 매일 오후 18:15 KST (UTC 09:15 당일) - 정각 혼잡 시간대 회피
+    - cron: '15 9 * * *'
   workflow_dispatch: # GitHub 웹 화면에서 'Run workflow' 버튼으로 즉시 실행 가능
 
 jobs:

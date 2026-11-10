@@ -9,7 +9,7 @@
 
 ```mermaid
 flowchart LR
-    A["GitHub Actions<br>(매일 2회: 07:30 / 18:00 KST)"] --> B["Python 수집 & 분석 파이프라인<br>(src/main.py)"]
+    A["GitHub Actions<br>(매일 2회: 07:30 / 18:15 KST)"] --> B["Python 수집 & 분석 파이프라인<br>(src/main.py)"]
     B --> C["SQLite DB 누적 저장<br>(data/wwri.db)"]
     B --> D["스마트폰 텔레그램 브리핑<br>(오전/오후 요약 & 긴급 경고)"]
     C --> E["Streamlit Cloud<br>(실시간 인터랙티브 웹 대시보드)"]
