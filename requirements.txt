@@ -1,0 +1,15 @@
+# Data & Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Financial Data & Scraping
+yfinance>=0.2.35
+requests>=2.31.0
+feedparser>=6.0.10
+
+# Dashboard & Visualization
+streamlit>=1.30.0
+plotly>=5.18.0
+
+# Utilities
+python-dotenv>=1.0.0
