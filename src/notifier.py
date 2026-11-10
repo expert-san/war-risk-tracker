@@ -1,4 +1,5 @@
 import os
+import datetime
 import requests
 from typing import Dict, Any, List
 
@@ -8,11 +9,16 @@ def format_daily_briefing(
     alerts: List[Dict[str, Any]],
     dashboard_url: str = None
 ) -> str:
-    """매일 아침 스마트폰으로 받아볼 텔레그램 브리핑 메시지 포맷팅"""
+    """스마트폰으로 받아볼 텔레그램 일일 브리핑 메시지 포맷팅 (오전/오후 시간대 반영)"""
     date = score_data.get("date")
     wwri = score_data.get("wwri_score")
     level = score_data.get("risk_level")
     change_7d = score_data.get("score_change_7d", 0.0)
+
+    # 한국 시간(UTC+9) 기준 시간대 반영
+    kst_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
+    period_str = "오전 브리핑" if kst_now.hour < 13 else "오후 브리핑"
+    time_str = kst_now.strftime("%H:%M")
 
     # 이모지 매핑
     level_icons = {
@@ -24,8 +30,8 @@ def format_daily_briefing(
     }
     icon = level_icons.get(level, "⚪")
 
-    msg = f"<b>[WWRI 전쟁 위험 모니터]</b> {icon}\n"
-    msg += f"📅 <b>일자:</b> {date}\n"
+    msg = f"<b>[WWRI 전쟁 위험 모니터 - {period_str}]</b> {icon}\n"
+    msg += f"📅 <b>일시:</b> {date} {time_str} (KST)\n"
     msg += f"📊 <b>종합 위험지수:</b> <b>{wwri}점</b> ({level})\n"
     msg += f"📈 <b>지난주 대비:</b> {change_7d:+.1f}점\n\n"
 

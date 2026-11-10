@@ -2,8 +2,10 @@ name: WWRI Daily Monitor & Alert
 
 on:
   schedule:
-    # 매일 한국 시간(KST) 오전 07:30 (UTC 22:30 전날)
+    # 1) 매일 오전 07:30 KST (UTC 22:30 전날)
     - cron: '30 22 * * *'
+    # 2) 매일 오후 18:00 KST (UTC 09:00 당일)
+    - cron: '0 9 * * *'
   workflow_dispatch: # GitHub 웹 화면에서 'Run workflow' 버튼으로 즉시 실행 가능
 
 jobs:
