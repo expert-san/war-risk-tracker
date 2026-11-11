@@ -27,7 +27,9 @@ def run_pipeline(target_date: str = None) -> None:
     """
     load_dotenv()
     if target_date is None:
-        target_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        # GitHub Actions 서버는 UTC 기준이므로 한국 시간(KST, UTC+9)으로 날짜를 계산
+        kst = datetime.timezone(datetime.timedelta(hours=9))
+        target_date = datetime.datetime.now(kst).strftime("%Y-%m-%d")
 
     print(f"==================================================")
     print(f"🚀 [WWRI Pipeline] Starting Daily Run: {target_date}")
