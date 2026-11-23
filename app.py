@@ -211,6 +211,7 @@ st.divider()
 st.subheader("🎖️ 최근 감지된 군사적 움직임 (병력 이동·훈련·배치·교전)")
 if df_military is not None and not df_military.empty:
     event_labels = {
+        "evacuation": "🚨 미군가족/비전투원 철수(NEO)",
         "troop_movement": "병력 이동",
         "exercise": "군사 훈련",
         "mobilization": "동원령",

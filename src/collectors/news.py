@@ -11,7 +11,9 @@ SEARCH_QUERIES_EN = [
     "Taiwan Strait China military drills",
     "North Korea missile nuclear ICBM test",
     "Red Sea Houthi ship attack maritime",
-    "South China Sea confrontation Philippines China"
+    "South China Sea confrontation Philippines China",
+    "USFK OR \"US Forces Korea\" dependents OR family evacuation OR NEO OR ordered departure",
+    "\"US embassy\" Seoul evacuation OR \"leave South Korea\" OR \"Do Not Travel\""
 ]
 
 SEARCH_QUERIES_KO = [
@@ -19,7 +21,9 @@ SEARCH_QUERIES_KO = [
     "이스라엘 이란 중동 공습 충돌",
     "대만해협 중국 군사훈련 봉쇄",
     "북한 미사일 핵실험 도발",
-    "홍해 후티 공격 상선"
+    "홍해 후티 공격 상선",
+    "주한미군 가족 철수 OR 소개작전 OR 비전투원 대피",
+    "주한 미국대사관 철수 OR 자국민 대피 OR 여행경보"
 ]
 
 RSS_FEEDS = [
@@ -38,21 +42,35 @@ RISK_KEYWORDS = [
     "war", "strike", "attack", "invasion", "casualty", "troops",
     "missile", "nuclear", "escalation", "sanction", "mobilization",
     "drone", "blockade", "carrier", "airspace", "adiz", "houthi",
+    "usfk", "non-combatant evacuation", "ordered departure", "evacuate", "dependents",
     "전쟁", "공습", "미사일", "핵", "군사", "충돌", "동원령",
-    "항모", "방공식별구역", "격추", "침공", "해상봉쇄", "계엄", "사상자", "후티", "도발"
+    "항모", "방공식별구역", "격추", "침공", "해상봉쇄", "계엄", "사상자", "후티", "도발",
+    "주한미군", "미군 가족", "비전투원", "소개작전", "자국민 철수", "철수령", "대피령"
 ]
 
-# 군사적 움직임 분류용 키워드 매핑
+# 군사적 움직임 분류용 키워드 매핑 (evacuation을 최우선 검사)
 MILITARY_EVENT_TYPES = {
+    "evacuation": [
+        "non-combatant evacuation", "ordered departure", "dependents leave", "families leave",
+        "family evacuation", "evacuate south korea", "leave south korea",
+        "주한미군 가족 철수", "미군 가족 철수", "미군 가족 대피", "미군가족 철수",
+        "비전투원 소개", "소개작전 발령", "자국민 철수령", "주한 미국대사관 철수"
+    ],
     "troop_movement": ["troop movement", "forces move", "convoy", "병력 이동", "부대 이동", "전진 배치"],
-    "exercise": ["military drill", "joint exercise", "war games", "군사훈련", "연합훈련", "합동훈련", "기동훈련"],
+    "exercise": ["military drill", "joint exercise", "war games", "courageous channel", "군사훈련", "연합훈련", "합동훈련", "기동훈련"],
     "mobilization": ["mobilization", "call-up", "reserve", "동원령", "예비군", "징집"],
     "deployment": ["deployed", "missile battery", "carrier strike group", "air defense", "항모전단", "미사일 배치", "사드", "패트리어트"],
     "combat_action": ["air strike", "missile strike", "intercepted", "artillery", "공습", "미사일 발사", "포격", "요격", "교전"]
 }
 
+# 정례 훈련 오탐 방지용 키워드 (실제 철수 vs 정례 소개훈련 구분)
+DRILL_EXCLUSION_KEYWORDS = [
+    "exercise", "drill", "training", "simulation", "courageous channel", "annual", "routine",
+    "훈련", "연습", "모의", "정례", "연례"
+]
 
-def fetch_news_events(target_date: str = None, max_items: int = 30) -> List[Dict[str, Any]]:
+
+def fetch_news_events(target_date: str = None, max_items: int = 50) -> List[Dict[str, Any]]:
     """
     글로벌 RSS 및 Google News(영문/한국어) 검색 피드를 취합하여
     분쟁/군사 관련 최신 뉴스를 다각도로 수집합니다.
@@ -147,12 +165,18 @@ def fetch_news_events(target_date: str = None, max_items: int = 30) -> List[Dict
             print(f"Failed to fetch feed '{source_name}': {e}")
             continue
 
+    # 미군 가족 철수 / 비전투원 소개(NEO) 관련 핵심 기사는 잘리지 않도록 최상단 우선 배치
+    evac_kws = MILITARY_EVENT_TYPES["evacuation"]
+    records.sort(
+        key=lambda r: 0 if any(k in (r["title"] + " " + r["summary"]).lower() for k in evac_kws) else 1
+    )
+
     return records[:max_items]
 
 
 def extract_military_events(news_records: List[Dict[str, Any]], target_date: str = None) -> List[Dict[str, Any]]:
     """
-    수집된 뉴스 기사에서 군사적 움직임(병력 이동, 군사훈련, 동원, 무기 배치 등)을
+    수집된 뉴스 기사에서 군사적 움직임(미군가족/비전투원 철수, 병력 이동, 군사훈련, 동원, 무기 배치 등)을
     분류하여 military_events 테이블용 레코드로 추출합니다.
     """
     if target_date is None:
@@ -163,7 +187,7 @@ def extract_military_events(news_records: List[Dict[str, Any]], target_date: str
         "동유럽": ["ukraine", "russia", "우크라이나", "러시아", "벨라루스", "nato", "폴란드"],
         "중동": ["israel", "iran", "gaza", "lebanon", "syria", "이스라엘", "이란", "가자", "레바논", "중동"],
         "대만해협": ["taiwan", "china", "대만", "중국"],
-        "한반도": ["north korea", "south korea", "pyongyang", "북한", "평양", "한미", "비무장지대"],
+        "한반도": ["north korea", "south korea", "pyongyang", "usfk", "seoul", "북한", "평양", "한미", "비무장지대", "주한미군", "한국", "서울"],
         "홍해·아덴만": ["red sea", "houthi", "yemen", "홍해", "후티", "예멘", "아덴만"],
         "남중국해": ["south china sea", "philippines", "남중국해", "필리핀"]
     }
@@ -186,12 +210,20 @@ def extract_military_events(news_records: List[Dict[str, Any]], target_date: str
                 break
 
         if detected_event_type:
+            # 정례 소개훈련(Courageous Channel 등) 오탐 방지: 훈련 키워드 동반 시 exercise로 분류
+            is_routine_drill = any(dk in text for dk in DRILL_EXCLUSION_KEYWORDS)
+            if detected_event_type == "evacuation" and is_routine_drill:
+                detected_event_type = "exercise"
+
             # 중요도(심각도) 판정
-            severity = "중요"
-            if any(crit in text for crit in ["nuclear", "icbm", "missile strike", "핵", "미사일 발사", "사상자", "침공"]):
+            if detected_event_type == "evacuation":
                 severity = "심각"
-            elif any(mod in text for mod in ["drill", "exercise", "훈련", "방문"]):
+            elif any(crit in text for crit in ["nuclear", "icbm", "missile strike", "핵", "미사일 발사", "사상자", "침공"]):
+                severity = "심각"
+            elif is_routine_drill or any(mod in text for mod in ["방문"]):
                 severity = "보통"
+            else:
+                severity = "중요"
 
             events.append({
                 "date": target_date,

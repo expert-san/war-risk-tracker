@@ -149,10 +149,26 @@ def evaluate_wwri(
     # 3) 군사적 동원 및 배치 점수 (25%) - 추출된 military_events 기반
     military_score = 20.0
     severe_mil_count = 0
+    emergency_detected = False
     if military_events:
         for ev in military_events:
             sev = ev.get("severity", "보통")
             etype = ev.get("event_type", "")
+            reg = ev.get("region", "")
+            desc = ev.get("description", "")
+
+            if etype == "evacuation":
+                # 한국 내 주한미군 가족/비전투원 철수(NEO)는 최우선 긴급 경보로 격상
+                military_score += 35.0
+                conflict_score += 25.0
+                severe_mil_count += 1
+                if reg == "한반도":
+                    emergency_detected = True
+                    triggers.insert(0, f"🚨 [긴급] 한반도 주한미군 가족/비전투원 철수(NEO) 징후 감지: {desc[:80]}")
+                else:
+                    triggers.insert(0, f"⚠️ [{reg}] 자국민/비전투원 철수 징후 감지: {desc[:80]}")
+                continue
+
             if sev == "심각":
                 military_score += 10.0
                 severe_mil_count += 1
@@ -179,12 +195,11 @@ def evaluate_wwri(
                     triggers.append(f"지정학 위험지수(GPR) 급등 ({gpr_val:.1f})")
 
     # 5) 뉴스 내 긴급 키워드 감지 (강대국 직접 교전 / 핵 위협)
-    emergency_detected = False
     for n in news_records:
         t = (n.get("title", "") + " " + n.get("summary", "")).lower()
         if any(kw in t for kw in ["world war", "direct confrontation", "nuclear strike", "핵 타격", "강대국 직접 교전"]):
             emergency_detected = True
-            triggers.append("⚠️ 강대국 간 직접 교전 또는 핵 위험 관련 긴급 보도 감지")
+            triggers.insert(0, "⚠️ 강대국 간 직접 교전 또는 핵 위험 관련 긴급 보도 감지")
             military_score += 30.0
             conflict_score += 25.0
             break
