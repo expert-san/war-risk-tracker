@@ -82,24 +82,38 @@ def fetch_regional_conflict_status(target_date: str = None, news_events: List[Di
         "남중국해": ["south china sea", "philippines", "spratly", "second thomas shoal", "남중국해", "필리핀", "스프래틀리"]
     }
 
+    # 실제 무력 교전·타격·사상자를 나타내는 고강도 키워드
+    high_intensity_keywords = [
+        "strike", "attack", "killed", "casualty", "casualties", "missile", "invasion",
+        "bomb", "shelling", "clash", "clashes", "intercepted", "drone", "blockade",
+        "공습", "타격", "사상자", "사망", "교전", "포격", "미사일 발사", "격추", "피격", "침공", "봉쇄"
+    ]
+
     results = []
 
     for region in MONITORING_REGIONS:
         keywords = region_keywords.get(region, [])
         incident_count = 0
+        intensity_score = 0.0
+        high_intensity_hits = 0
 
         if news_events:
             for n in news_events:
                 text = (n.get("title", "") + " " + n.get("summary", "")).lower()
                 if any(kw in text for kw in keywords):
                     incident_count += 1
+                    if any(hk in text for hk in high_intensity_keywords):
+                        intensity_score += 1.5
+                        high_intensity_hits += 1
+                    else:
+                        intensity_score += 0.5
 
-        # 충돌 수준 판정 기준
-        if incident_count >= 5:
+        # 확장된 수집량(50건) 및 교전 강도를 반영한 충돌 수준 판정
+        if intensity_score >= 8.0 and high_intensity_hits >= 3:
             level = "심각"
-        elif incident_count >= 3:
+        elif intensity_score >= 4.5 and high_intensity_hits >= 1:
             level = "높음"
-        elif incident_count >= 1:
+        elif intensity_score >= 1.5:
             level = "보통"
         else:
             level = "낮음"
@@ -110,8 +124,8 @@ def fetch_regional_conflict_status(target_date: str = None, news_events: List[Di
             "incident_count": incident_count,
             "casualties": 0,
             "conflict_level": level,
-            "source": "Global Media Monitoring & Keyword Aggregate",
-            "notes": f"최근 24시간 내 관련 보도 {incident_count}건 감지"
+            "source": "Global Media Monitoring & Intensity Aggregate",
+            "notes": f"최근 48시간 보도 {incident_count}건 (교전·타격 신호 {high_intensity_hits}건)"
         })
 
     return results

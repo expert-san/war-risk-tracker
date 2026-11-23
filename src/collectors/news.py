@@ -69,6 +69,13 @@ DRILL_EXCLUSION_KEYWORDS = [
     "훈련", "연습", "모의", "정례", "연례"
 ]
 
+# 부정문·부인·가짜뉴스 오탐 방지용 키워드 ("철수 계획 없어", "fake orders" 등 제외)
+NEGATION_EXCLUSION_KEYWORDS = [
+    "no plan", "no plans", "not planning", "deny", "denies", "denied", "fake", "hoax",
+    "false alarm", "rumor", "misinformation", "ruled out", "unlikely", "not evacuating",
+    "계획 없", "계획없", "사실무근", "부인", "가짜", "허위", "루머", "오보", "고려 안", "검토 안", "추진 안"
+]
+
 
 def fetch_news_events(target_date: str = None, max_items: int = 50) -> List[Dict[str, Any]]:
     """
@@ -81,9 +88,9 @@ def fetch_news_events(target_date: str = None, max_items: int = 50) -> List[Dict
     records = []
     seen_titles = set()
 
-    # 1. 키워드 기반 Google News RSS 수집 (영문)
+    # 1. 키워드 기반 Google News RSS 수집 (영문 - 최근 48시간 이내 기사만 제한)
     for query in SEARCH_QUERIES_EN:
-        encoded_query = urllib.parse.quote(query)
+        encoded_query = urllib.parse.quote(f"{query} when:2d")
         feed_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
         try:
             feed = feedparser.parse(feed_url)
@@ -110,9 +117,9 @@ def fetch_news_events(target_date: str = None, max_items: int = 50) -> List[Dict
             print(f"Failed to fetch news for EN query '{query}': {e}")
             continue
 
-    # 2. 키워드 기반 Google News RSS 수집 (한국어)
+    # 2. 키워드 기반 Google News RSS 수집 (한국어 - 최근 48시간 이내 기사만 제한)
     for query in SEARCH_QUERIES_KO:
-        encoded_query = urllib.parse.quote(query)
+        encoded_query = urllib.parse.quote(f"{query} when:2d")
         feed_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=ko&gl=KR&ceid=KR:ko"
         try:
             feed = feedparser.parse(feed_url)
@@ -210,6 +217,11 @@ def extract_military_events(news_records: List[Dict[str, Any]], target_date: str
                 break
 
         if detected_event_type:
+            # 부정문·부인·가짜뉴스 기사 오탐 방지 (예: "철수 계획 없어", "fake orders")
+            is_negated = any(nk in text for nk in NEGATION_EXCLUSION_KEYWORDS)
+            if is_negated and detected_event_type in ("evacuation", "mobilization"):
+                continue
+
             # 정례 소개훈련(Courageous Channel 등) 오탐 방지: 훈련 키워드 동반 시 exercise로 분류
             is_routine_drill = any(dk in text for dk in DRILL_EXCLUSION_KEYWORDS)
             if detected_event_type == "evacuation" and is_routine_drill:
