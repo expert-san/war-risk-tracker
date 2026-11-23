@@ -163,6 +163,55 @@ def save_news_events(records: List[Dict[str, Any]], db_path: str = DB_PATH) -> N
     conn.close()
 
 
+def save_geopolitical_data(records: List[Dict[str, Any]], db_path: str = DB_PATH) -> None:
+    """지정학적 위험 지표(GPR 등) 저장 (UPSERT)"""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+    for r in records:
+        cursor.execute("""
+        INSERT INTO geopolitical_data (date, indicator_name, value, source, notes)
+        VALUES (:date, :indicator_name, :value, :source, :notes)
+        ON CONFLICT(date, indicator_name) DO UPDATE SET
+            value = excluded.value,
+            source = excluded.source,
+            notes = excluded.notes
+        """, r)
+    conn.commit()
+    conn.close()
+
+
+def save_conflict_data(records: List[Dict[str, Any]], db_path: str = DB_PATH) -> None:
+    """지역별 무력충돌 상태 저장 (당일 동일 지역 갱신)"""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+    for r in records:
+        cursor.execute("DELETE FROM conflict_data WHERE date = ? AND region = ?", (r["date"], r["region"]))
+        cursor.execute("""
+        INSERT INTO conflict_data (date, region, incident_count, casualties, conflict_level, source, notes)
+        VALUES (:date, :region, :incident_count, :casualties, :conflict_level, :source, :notes)
+        """, r)
+    conn.commit()
+    conn.close()
+
+
+def save_military_events(records: List[Dict[str, Any]], db_path: str = DB_PATH) -> None:
+    """군사적 움직임(병력 이동, 훈련, 동원, 배치) 저장 (당일 중복 설명 방지)"""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+    for r in records:
+        cursor.execute(
+            "SELECT id FROM military_events WHERE date = ? AND description = ?",
+            (r["date"], r["description"])
+        )
+        if cursor.fetchone() is None:
+            cursor.execute("""
+            INSERT INTO military_events (date, region, event_type, description, severity, source)
+            VALUES (:date, :region, :event_type, :description, :severity, :source)
+            """, r)
+    conn.commit()
+    conn.close()
+
+
 def save_risk_score(score_data: Dict[str, Any], db_path: str = DB_PATH) -> None:
     """종합 위험도 점수 저장"""
     conn = get_connection(db_path)
